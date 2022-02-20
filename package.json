@@ -1,0 +1,19 @@
+{
+  "name": "sso",
+  "version": "1.0.0",
+  "description": "Kerberos based SSO middleware",
+  "main": "index.js",
+  "license": "ISC",
+  "dependencies": {
+    "activedirectory": "^0.7.2",
+    "express": "^4.17.3",
+    "kerberos": "^1.1.7"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.15"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "start:watch": "nodemon index.js"
+  }
+}

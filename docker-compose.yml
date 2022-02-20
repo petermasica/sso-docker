@@ -1,0 +1,83 @@
+version: '3'
+services:
+  openldap:
+    image: nugaon/openldap-with-kerberos:1.5.0
+    container_name: openldap
+    environment:
+      LDAP_LOG_LEVEL: '256'
+      LDAP_ORGANISATION: 'LAB'
+      LDAP_DOMAIN: 'lab.local'
+      LDAP_BASE_DN: ''
+      LDAP_ADMIN_PASSWORD: 'admin'
+      LDAP_CONFIG_PASSWORD: 'config'
+      LDAP_READONLY_USER: 'false'
+      #LDAP_READONLY_USER_USERNAME: "readonly"
+      #LDAP_READONLY_USER_PASSWORD: "readonly"
+      LDAP_RFC2307BIS_SCHEMA: 'false'
+      LDAP_BACKEND: 'mdb'
+      LDAP_TLS: 'true'
+      LDAP_TLS_CRT_FILENAME: 'ldap.crt'
+      LDAP_TLS_KEY_FILENAME: 'ldap.key'
+      LDAP_TLS_DH_PARAM_FILENAME: 'dhparam.pem'
+      LDAP_TLS_CA_CRT_FILENAME: 'ca.crt'
+      LDAP_TLS_ENFORCE: 'false'
+      LDAP_TLS_CIPHER_SUITE: 'SECURE256:-VERS-SSL3.0'
+      LDAP_TLS_VERIFY_CLIENT: 'demand'
+      LDAP_REPLICATION: 'false'
+      #LDAP_REPLICATION_CONFIG_SYNCPROV: "binddn="cn=admin,cn=config" bindmethod=simple credentials=$$LDAP_CONFIG_PASSWORD searchbase="cn=config" type=refreshAndPersist retry="60 +" timeout=1 starttls=critical"
+      #LDAP_REPLICATION_DB_SYNCPROV: "binddn="cn=admin,$$LDAP_BASE_DN" bindmethod=simple credentials=$$LDAP_ADMIN_PASSWORD searchbase="$$LDAP_BASE_DN" type=refreshAndPersist interval=00:00:00:10 retry="60 +" timeout=1 starttls=critical"
+      #LDAP_REPLICATION_HOSTS: "#PYTHON2BASH:['ldap://ldap.lab.local','ldap://ldap2.lab.local']"
+      KEEP_EXISTING_CONFIG: 'false'
+      LDAP_REMOVE_CONFIG_AFTER_SETUP: 'true'
+      LDAP_SSL_HELPER_PREFIX: 'ldap'
+    tty: true
+    stdin_open: true
+    ports:
+      - '389:389'
+      - '636:636'
+    # For replication to work correctly, domainname and hostname must be
+    # set correctly so that "hostname"."domainname" equates to the
+    # fully-qualified domain name for the host.
+    domainname: 'lab.local'
+    hostname: 'ldap-server'
+
+  kerberos:
+    image: nugaon/kerberos-with-ldap:1.0.0
+    container_name: kerberos
+    volumes:
+      - /dev/urandom:/dev/random
+    environment:
+      REALM: 'LAB.LOCAL'
+      DOMAIN_REALM: 'lab.local'
+      SEARCH_DOMAINS: 'lab.local'
+      LDAP_DC: 'dc=lab,dc=local'
+      LDAP_URL: 'ldap://openldap'
+    ports:
+      - 88:88
+      - 749:749
+
+  nodejs-with-kerberos:
+    build:
+      context: ./docker-nodejs-with-kerberos
+    container_name: nodejs-with-kerberos
+    environment:
+      TEST: 'test123'
+      KERB_HTTP_SERVICE_NAME: 'web.lab.local'
+      KERB_ADMIN_ADDRESS: 'kerberos:749'
+      START_COMMAND: 'npm run start:watch'
+    volumes:
+      - ./:/usr/src/app
+      - ./krb5-client.conf:/etc/krb5.conf
+    ports:
+      - '3000:3000'
+
+  phpldapadmin:
+    image: osixia/phpldapadmin:latest
+    container_name: phpldapadmin
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: 'openldap'
+      PHPLDAPADMIN_HTTPS: 'false'
+    ports:
+      - '8080:80'
+    depends_on:
+      - openldap
